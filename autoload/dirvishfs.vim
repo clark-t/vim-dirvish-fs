@@ -1,18 +1,18 @@
 
 function! dirvishfs#add(pathname)
   if IsExists(a:pathname)
-    EchoExistsWarning(a:pathname)
+    call EchoExistsWarning(a:pathname)
     return
   endif
 
   if IsDirectoryName(a:pathname)
     call mkdir(a:pathname, 'p')
   else
-    EnsureParentDir(a:pathname)
+    call EnsureParentDir(a:pathname)
     execute "normal! :e " . a:pathname . "\<CR>:w\<CR>"
   endif
 
-  RefreshDirvish()
+  call RefreshDirvish()
 endfunction
 
 function! dirvishfs#move(pathname)
@@ -24,17 +24,17 @@ function! dirvishfs#move(pathname)
   endif
 
   if IsExists(to)
-    EchoExistsWarning(to)
+    call EchoExistsWarning(to)
     return
   endif
 
   let bufs = QueryOpeningBuffers(from)
 
-  EnsureParentDir(to)
+  call EnsureParentDir(to)
   call rename(from, to)
 
-  SwipeBuffers(bufs)
-  RefreshDirvish()
+  call SwipeBuffers(bufs)
+  call RefreshDirvish()
 endfunction
 
 function! dirvishfs#delete(pathname)
@@ -42,8 +42,8 @@ function! dirvishfs#delete(pathname)
 
   call delete(a:pathname, 'rf')
 
-  SwipeBuffers(bufs)
-  RefreshDirvish()
+  call SwipeBuffers(bufs)
+  call RefreshDirvish()
 endfunction
 
 function! IsDirectoryName(pathname)
@@ -105,7 +105,7 @@ function! IsInDirvish()
 endfunction
 
 function! RefreshDirvish()
-  if &filetype == 'dirvish'
+  if IsInDirvish()
     execute "normal R"
   endif
 endfunction
