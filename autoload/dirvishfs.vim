@@ -16,7 +16,7 @@ function! dirvishfs#add(pathname)
 endfunction
 
 function! dirvishfs#move(pathname)
-  let from = IsInDirvish() ? getline('.') : expand('%')
+  let from = IsInDirvish() ? getline('.') : expand('%:p')
   let to = a:pathname
 
   if IsDirectoryName(to)
@@ -55,7 +55,7 @@ function! IsExists(pathname)
 endfunction
 
 function! EchoExistsWarning(pathname)
-  execute "normal! :echo '" . a:pathname . " is EXSITS!'\<CR>"
+  execute "normal! :echoerr '" . a:pathname . " is EXSITS!'\<CR>"
 endfunction
 
 function! GetBaseName(pathname)
