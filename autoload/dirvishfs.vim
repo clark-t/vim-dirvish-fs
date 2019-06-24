@@ -150,7 +150,7 @@ function! SwitchBuffers(fromToMap)
   " let isInDirvish = IsInDirvish()
   " let curpath = expand('%')
 
-  for i from a:fromToMap
+  for i in a:fromToMap
     let winid = bufwinid(i[0])
     if winid == -1
       continue
