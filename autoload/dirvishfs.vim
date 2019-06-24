@@ -28,12 +28,14 @@ function! dirvishfs#move(pathname)
     return
   endif
 
-  let bufs = QueryOpeningBuffers(from)
+  let fromToMap = FromToMap(from, to)
+  let bufMaps = QueryOpeningBuffers(fromToMap)
 
   call EnsureParentDir(to)
   call rename(from, to)
 
-  call SwipeBuffers(bufs)
+  call SwitchBuffers(bufMaps)
+  call SwipeBuffers(bufMaps)
   call RefreshDirvish()
 endfunction
 
@@ -74,29 +76,23 @@ function! EnsureParentDir(pathname)
   endif
 endfunction
 
-function! QueryOpeningBuffers(pathname)
-  let filepaths = []
+function! QueryOpeningBuffers(fromToMap)
   let bufs = []
 
-  if IsDirectoryName(a:pathname)
-    let filepaths = split(globpath(a:pathname, '*'), '\n')
-  else
-    let filepaths = [a:pathname]
-  endif
-
-  for i in filepaths
-    let buf = bufname(i)
-    if !empty(buf)
-      call add(bufs, buf)
+  for i in a:fromToMap
+    if bufexists(i[0])
+      call add(bufs, i)
     endif
   endfor
 
   return bufs
 endfunction
 
-function! SwipeBuffers(bufs)
-  for i in a:bufs
-    execute "normal! :bwipe " . i . "\<CR>"
+function! SwipeBuffers(bufMaps)
+  for i in a:bufMaps
+    if bufexists(i[0])
+      silent execute "normal! :bwipe " . i[0] . "\<CR>"
+    endif
   endfor
 endfunction
 
@@ -109,3 +105,74 @@ function! RefreshDirvish()
     execute "normal R"
   endif
 endfunction
+
+" function! GetWindowIds()
+"   let layout = winlayout()
+"   let stack = [layout]
+"   let ids = []
+
+"   while len(stack) > 0
+"     let val = stack[-1]
+"     let stack = stack[0:-2]
+"     if val[0] != 'leaf'
+"       let stack = stack + val[1]
+"     else
+"       call add(ids, val[1])
+"     endif
+"   endwhile
+
+"   return ids
+" endfunction
+
+" function! GetWinBufInfos()
+"   let winids = GetWindowIds()
+"   let results = []
+"   for id in winids
+"     let nr = winbufnr(id)
+"     let name = bufname(nr)
+"     call add(results, [id, nr, name])
+"   endfor
+"   return results
+" endfunction
+
+" function! GetListedBufInfos()
+"   let results = []
+"   for nr in range(1, bufnr('$'))
+"     if bufexists(nr) && buflisted(nr)
+"       call add(results, [nr, bufname(nr)])
+"     endif
+"   endfor
+"   return results
+" endfunction
+
+function! SwitchBuffers(fromToMap)
+  " let curwinid = win_getid()
+  " let isInDirvish = IsInDirvish()
+  " let curpath = expand('%')
+
+  for i from a:fromToMap
+    let winid = bufwinid(i[0])
+    if winid == -1
+      continue
+    endif
+    call win_gotoid(winid)
+    silent execute "normal! :e " . i[1] . "\<CR>"
+  endfor
+endfunction
+
+function! FromToMap(from, to)
+  if !isdirectory(a:from)
+    let dist = IsDirectoryName(a:to) ? (a:to . GetBaseName(a:from)) : a:to
+    return [[a:from, dist]]
+  endif
+
+  let results = []
+  let lenOfFromRoot = IsDirectoryName(a:from) ? len(a:from) : (len(a:from) + 1)
+  let toRoot = IsDirectoryName(a:to) ? a:to : (a:to . '/')
+  let frompaths = split(globpath(a:from, '*'), '\n')
+  for frompath in frompaths
+    call add(results, [frompath, toRoot . frompath[lenOfFromRoot:]])
+  endfor
+  return results
+endfunction
+
