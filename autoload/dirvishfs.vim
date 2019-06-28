@@ -27,7 +27,10 @@ function! dirvishfs#move(pathname)
     call EchoExistsWarning(to)
     return
   endif
+  
+  let infos = getbufinfo()
 
+  
   let fromToMap = FromToMap(from, to)
   let bufMaps = QueryOpeningBuffers(fromToMap)
 
@@ -106,23 +109,23 @@ function! RefreshDirvish()
   endif
 endfunction
 
-" function! GetWindowIds()
-"   let layout = winlayout()
-"   let stack = [layout]
-"   let ids = []
+function! GetWindowIds()
+  let layout = winlayout()
+  let stack = [layout]
+  let ids = []
 
-"   while len(stack) > 0
-"     let val = stack[-1]
-"     let stack = stack[0:-2]
-"     if val[0] != 'leaf'
-"       let stack = stack + val[1]
-"     else
-"       call add(ids, val[1])
-"     endif
-"   endwhile
+  while len(stack) > 0
+    let val = stack[-1]
+    let stack = stack[0:-2]
+    if val[0] != 'leaf'
+      let stack = stack + val[1]
+    else
+      call add(ids, val[1])
+    endif
+  endwhile
 
-"   return ids
-" endfunction
+  return ids
+endfunction
 
 " function! GetWinBufInfos()
 "   let winids = GetWindowIds()
@@ -169,10 +172,32 @@ function! FromToMap(from, to)
   let results = []
   let lenOfFromRoot = IsDirectoryName(a:from) ? len(a:from) : (len(a:from) + 1)
   let toRoot = IsDirectoryName(a:to) ? a:to : (a:to . '/')
-  let frompaths = split(globpath(a:from, '*'), '\n')
+  let frompaths = split(globpath(a:from, '**'), '\n')
   for frompath in frompaths
     call add(results, [frompath, toRoot . frompath[lenOfFromRoot:]])
   endfor
   return results
+endfunction
+
+
+function! GetBufInfo(bufinfos, pathname)
+  for info in a:bufinfos
+    if info.name == pathname
+      return info
+    endif
+  endfor
+endfunction
+
+" function! GetBufInfo(bufinfos, paths)
+"   let results = []
+"   for path in a:paths
+"     let info = GetBufInfo(buf)
+"   endfor
+" endfunction
+
+function! HasModified(bufinfos, paths)
+  for path in a:paths
+    let info = GetBufInfo(bufinfos, paths)
+  endfor
 endfunction
 
