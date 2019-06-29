@@ -23,22 +23,35 @@ function! dirvishfs#move(pathname)
     let to = to . GetBaseName(from)
   endif
 
-  if IsExists(to)
-    call EchoExistsWarning(to)
+  " if IsExists(to)
+  "   call EchoExistsWarning(to)
+  "   return
+  " endif
+
+  let infos = getbufinfo()
+  let fromPaths = GetFromPaths(from)
+
+  if HasModifiedFile(infos, fromPaths)
+    execute "normal! :echo 'there are some files modified without saving'\<CR>"
     return
   endif
-  
-  let infos = getbufinfo()
 
-  
-  let fromToMap = FromToMap(from, to)
-  let bufMaps = QueryOpeningBuffers(fromToMap)
+  let fromToMap = GetFromToMap(from, to, fromPaths)
+  let toPaths = GetToPaths(fromToMap)
+
+  if HasExistsFile(infos, toPaths)
+    execute "normal! :echo 'some dist files exists'"
+    return
+  endif
+
+  let actions = GetBufferActions(infos, fromToMap)
 
   call EnsureParentDir(to)
   call rename(from, to)
 
-  call SwitchBuffers(bufMaps)
-  call SwipeBuffers(bufMaps)
+  call ExecuteBufferActions(actions)
+  " call SwitchBuffers(bufMaps)
+  " call SwipeBuffers(bufMaps)
   call RefreshDirvish()
 endfunction
 
@@ -163,22 +176,30 @@ function! SwitchBuffers(fromToMap)
   endfor
 endfunction
 
-function! FromToMap(from, to)
+function! GetFromPaths (from)
+  if !isdirectory(a:from)
+    return [a:from]
+  end
+
+  return split(globpath(a:from, '**'), '%')
+endfunction
+
+function! GetFromToMap (from, to, fromPaths)
   if !isdirectory(a:from)
     let dist = IsDirectoryName(a:to) ? (a:to . GetBaseName(a:from)) : a:to
-    return [[a:from, dist]]
+    return [{'from': a:from, 'to': dist}]
   endif
 
   let results = []
   let lenOfFromRoot = IsDirectoryName(a:from) ? len(a:from) : (len(a:from) + 1)
   let toRoot = IsDirectoryName(a:to) ? a:to : (a:to . '/')
-  let frompaths = split(globpath(a:from, '**'), '\n')
-  for frompath in frompaths
-    call add(results, [frompath, toRoot . frompath[lenOfFromRoot:]])
+
+  for fromPath in a:fromPaths
+   call add(results, [fromPath, toRoot . fromPath[lenOfFromRoot:]])
   endfor
+
   return results
 endfunction
-
 
 function! GetBufInfo(bufinfos, pathname)
   for info in a:bufinfos
@@ -188,16 +209,86 @@ function! GetBufInfo(bufinfos, pathname)
   endfor
 endfunction
 
-" function! GetBufInfo(bufinfos, paths)
-"   let results = []
-"   for path in a:paths
-"     let info = GetBufInfo(buf)
-"   endfor
-" endfunction
-
-function! HasModified(bufinfos, paths)
+function! HasModifiedFile(bufinfos, paths)
   for path in a:paths
     let info = GetBufInfo(bufinfos, paths)
+    if info.changed == v:true
+      return v:true
+    endif
+  endfor
+  return v:false
+endfunction
+
+function! HasExistsFile(paths)
+  for path in a:paths
+    if filereadable(path)
+      return v:true
+    endif
+  endfor
+  return v:false
+endfunction
+
+function! GetToPaths(fromToMap)
+  let results = []
+  for info in a:fromToMap
+    call add(results, info.to)
   endfor
 endfunction
+
+function! GetBufferActions(infos, fromToMap)
+  let results = {}
+  for fromTo in a:fromToMap
+    let info = GetBufInfo(a:infos, fromTo.from)
+
+    if type(info) != v:t_dict
+      continue
+    endif
+
+    if info.hidden == v:false
+      if info.variables.current_syntax == 'dirvish'
+        let action = CreateDirvishWindowAction(info, fromToMap)
+        results.xxx = action
+      endif
+    endif
+
+    if info.hidden == v:true && info.listed == v:false
+    endif
+    " if info.hidden == v:true
+    "   let action = {
+    "         \ 'bufnr': info.bufnr,
+    "         \ 'action': 'wipe'
+    "         \ }
+    "   call add(results, )
+    "   continue
+    " endif
+    " let action = {'windows': info.windows}
+
+    if info.variables.current_syntax == 'dirvish'
+      
+    endif
+  endfor
+endfunction
+
+function! GetDirvishPrevInfo(fromToMap, bufInfo)
+  let currentWinId = win_getid()
+
+  call win_gotoid(a:distWinId)
+  silent execute "normal q"
+  let prevPath = expand('%:p')
+  execute "normal :Dirvish " . a:bufInfo.name "\<CR>"
+
+  call win_gotoid(currentWinId)
+
+  return {'winid': a:distWinId, 'dirvish': a:bufInfo.name, 'file': prevPath}
+endfunction
+
+function! CreateDirvishWindowAction(fromToMap, prevInfo)
+  let str = "normal :call win_gotoid(" . a:windowInfowinid . ")\<CR>"
+  if a:windowInfo.file != ''
+
+    let str += ""
+  endif
+
+endfunction
+
 
