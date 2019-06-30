@@ -1,5 +1,5 @@
 
-function! dirvishfs#add(pathname)
+function! dirvishfs#add(pathname) abort
   if IsExists(a:pathname)
     call EchoExistsWarning(a:pathname)
     return
@@ -19,7 +19,7 @@ endfunction
 
 " endfunction
 
-function! dirvishfs#move(pathname)
+function! dirvishfs#move(pathname) abort
   let from = IsInDirvish() ? getline('.') : expand('%:p')
   let to = a:pathname
 
@@ -53,7 +53,7 @@ function! dirvishfs#move(pathname)
   call RefreshDirvish()
 endfunction
 
-function! dirvishfs#delete(pathname)
+function! dirvishfs#delete(pathname) abort
   let paths = GetFromPaths(a:pathname)
   let bufInfos = GetBufInfos()
 
@@ -70,11 +70,11 @@ function! IsDirectoryName(pathname)
   return a:pathname[len(a:pathname) - 1] == "/"
 endfunction
 
-function! IsExists(pathname)
+function! IsExists(pathname) abort
   return isdirectory(a:pathname) || filereadable(a:pathname)
 endfunction
 
-function! GetBaseName(pathname)
+function! GetBaseName(pathname) abort
   if IsDirectoryName(a:pathname)
     return fnamemodify(a:pathname, ':p:h:t')
   else
@@ -83,13 +83,13 @@ function! GetBaseName(pathname)
 
 endfunction
 
-function! EnsureDir(pathname)
-  if !isdirectory(pathname) && !filereadable(a:pathname)
-    call mkdir(pathname, 'p')
+function! EnsureDir(pathname) abort
+  if !isdirectory(a:pathname) && !filereadable(a:pathname)
+    call mkdir(a:pathname, 'p')
   endif
 endfunction
 
-function! EnsureParentDir(pathname)
+function! EnsureParentDir(pathname) abort
   let dir = fnamemodify(a:pathname, ':p:h')
   call EnsureDir(dir)
   " if !isdirectory(dir)
@@ -97,7 +97,7 @@ function! EnsureParentDir(pathname)
   " endif
 endfunction
 
-function! WipeBuffers(paths)
+function! WipeBuffers(paths) abort
   for path in a:paths
     if bufexists(path)
       silent execute "normal! :bwipe " . path . "\<CR>"
@@ -105,17 +105,17 @@ function! WipeBuffers(paths)
   endfor
 endfunction
 
-function! IsInDirvish()
+function! IsInDirvish() abort
   return &filetype == 'dirvish'
 endfunction
 
-function! RefreshDirvish()
+function! RefreshDirvish() abort
   if IsInDirvish()
     execute "normal R"
   endif
 endfunction
 
-function! GetBufInfos()
+function! GetBufInfos() abort
   let infos = getbufinfo()
   let results = []
   for info in infos
@@ -133,7 +133,7 @@ function! GetBufInfos()
   return results
 endfunction
 
-function! GetFromPaths (from)
+function! GetFromPaths(from) abort
   if !isdirectory(a:from)
     return [a:from]
   end
@@ -149,14 +149,14 @@ function! GetFromPaths (from)
   return arr
 endfunction
 
-function! GetToPaths(fromToMap)
+function! GetToPaths(fromToMap) abort
   let results = []
   for info in a:fromToMap
     call add(results, info.to)
   endfor
 endfunction
 
-function! DirPathFormat(...)
+function! DirPathFormat(...) abort
   if a:0 == 1
     if !isdirectory(a:1)
       return a:1
@@ -171,13 +171,13 @@ function! DirPathFormat(...)
   return pathname
 endfunction
 
-function! ReplaceRoot(pathname, fromRoot, toRoot)
+function! ReplaceRoot(pathname, fromRoot, toRoot) abort
   let fromRootFormated = DirPathFormat(a:fromRoot, 'force')
   let toRootFormated = DirPathFormat(a:toRoot, 'force')
   return toRootFormated . pathname[len(fromRootFormated):]
 endfunction
 
-function! GetFromToMap (fromPaths, from, to)
+function! GetFromToMap(fromPaths, from, to) abort
   if !isdirectory(a:from)
     let dist = IsDirectoryName(a:to) ? (a:to . GetBaseName(a:from)) : a:to
     return [{'from': a:from, 'to': a:to}]
@@ -193,7 +193,7 @@ function! GetFromToMap (fromPaths, from, to)
   return results
 endfunction
 
-function! GetBufInfo(bufinfos, pathname)
+function! GetBufInfo(bufinfos, pathname) abort
   for info in a:bufinfos
     if info.name == pathname
       return info
@@ -202,7 +202,7 @@ function! GetBufInfo(bufinfos, pathname)
   return -1
 endfunction
 
-function! HasFileModified(bufinfos, paths)
+function! HasFileModified(bufinfos, paths) abort
   for path in a:paths
     let info = GetBufInfo(bufinfos, paths)
     if info.changed == v:true
@@ -212,7 +212,7 @@ function! HasFileModified(bufinfos, paths)
   return v:false
 endfunction
 
-function! HasFileExists(paths)
+function! HasFileExists(paths) abort
   for path in a:paths
     if filereadable(path)
       return v:true
@@ -224,7 +224,7 @@ endfunction
 " replace the dirvish window first
 " then replace opening file
 " then replace hidden buffer
-function! GetBufferReplaceActions(infos, fromToMap)
+function! GetBufferReplaceActions(infos, fromToMap) abort
   let actions = []
 
   for fromTo in a:fromToMap
@@ -255,7 +255,7 @@ function! GetBufferReplaceActions(infos, fromToMap)
   return actions
 endfunction
 
-function! GetBufferDeleteActions(infos, paths)
+function! GetBufferDeleteActions(infos, paths) abort
   let actions = []
   for pathname in a:paths
     let info = GetBufInfo(a:infos, pathname)
@@ -275,7 +275,7 @@ function! GetBufferDeleteActions(infos, paths)
   return actions
 endfunction
 
-function! CreateDirvishReplaceAction(fromToMap, bufInfo)
+function! CreateDirvishReplaceAction(fromToMap, bufInfo) abort
   let prevInfo = GetDirvishPrevInfo(a:bufInfo)
   let actions = []
   for info in prevInfo['prev']
@@ -294,7 +294,7 @@ function! CreateDirvishReplaceAction(fromToMap, bufInfo)
   return actions
 endfunction
 
-function! CreateFilePeplaceAction(fromToMap, bufInfo)
+function! CreateFilePeplaceAction(fromToMap, bufInfo) abort
   let actions = []
   let fromTo = GetFromTo(a:fromToMap, a:bufInfo)
   for winid in bufInfo.windows
@@ -304,7 +304,7 @@ function! CreateFilePeplaceAction(fromToMap, bufInfo)
   return actions
 endfunction
 
-function! GetDirvishPrevInfo(bufInfo)
+function! GetDirvishPrevInfo(bufInfo) abort
   let currentWinId = win_getid()
 
   let result = {
@@ -327,7 +327,7 @@ function! GetDirvishPrevInfo(bufInfo)
   return result
 endfunction
 
-function! GetFromTo(fromToMap, from)
+function! GetFromTo(fromToMap, from) abort
   for fromTo in a:fromToMap
     if fromTo.from == a:from
       return fromTo
@@ -336,7 +336,7 @@ function! GetFromTo(fromToMap, from)
   return -1
 endfunction
 
-function! GetNothing(sth)
+function! GetNothing(sth) abort
   return type(sth) == v:t_number && sth == -1
 endfunction
 
@@ -348,7 +348,7 @@ endfunction
 
 let s:defaultEmptyBufnr = -1
 
-function! ShowDefaultDir()
+function! ShowDefaultDir() abort
   if s:defaultEmptyBufnr == -1
     execute "normal! :enew\<CR>"
     let s:defaultEmptyBufnr = winbufnr(win_getid())
