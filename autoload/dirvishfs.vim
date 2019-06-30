@@ -15,9 +15,20 @@ function! dirvishfs#add(pathname) abort
   call RefreshDirvish()
 endfunction
 
-" function! dirvish#copy(pathname)
+function! dirvishfs#copy(pathname)
+  let from = IsInDirvish() ? getline('.') : expand('%:p')
+  let to = a:pathname
 
-" endfunction
+  if IsDirectoryName(to)
+    let to = to . GetBaseName(from)
+  endif
+
+  if IsDirectoryName(from)
+    call system("cp -r " . from . " " . to)
+  else
+    call system("cp " . from . " " . to)
+  endif
+endfunction
 
 function! dirvishfs#move(pathname) abort
   let from = IsInDirvish() ? getline('.') : expand('%:p')
@@ -29,27 +40,37 @@ function! dirvishfs#move(pathname) abort
 
   let infos = GetBufInfos()
   let fromPaths = GetFromPaths(from)
-
   if HasFileModified(infos, fromPaths)
     execute "normal! :echo 'there are some files modified without saving'\<CR>"
     return
   endif
 
+  let currentWinId = win_getid()
   let fromToMap = GetFromToMap(fromPaths, from, to)
   let toPaths = GetToPaths(fromToMap)
 
-  if HasFileExists(infos, toPaths)
+  if HasFileExists(toPaths)
     execute "normal! :echo 'some dist files exists'"
     return
   endif
 
+  " call EnsureParentDir(to)
+  " call SwitchModifyWindowBufferToDefault(infos, fromToMap)
+
+  if IsDirectoryName(from)
+    call system("cp -r " . from . " " . to)
+  else
+    call system("cp " . from . " " . to)
+  endif
+
+  call delete(from, 'rf')
+
+
+  " call rename(from, to)
   let actions = GetBufferReplaceActions(infos, fromToMap)
-
-  call EnsureParentDir(to)
-  call rename(from, to)
-
   call ExecuteActions(actions)
-  call WipeBuffers(fromPaths)
+  call WipeBuffers(infos, fromPaths)
+  call win_gotoid(currentWinId)
   call RefreshDirvish()
 endfunction
 
@@ -62,7 +83,7 @@ function! dirvishfs#delete(pathname) abort
   call delete(a:pathname, 'rf')
 
   call ExecuteActions(actions)
-  call WipeBuffers(paths)
+  call WipeBuffers(bufInfos, paths)
   call RefreshDirvish()
 endfunction
 
@@ -83,24 +104,32 @@ function! GetBaseName(pathname) abort
 
 endfunction
 
-function! EnsureDir(pathname) abort
-  if !isdirectory(a:pathname) && !filereadable(a:pathname)
-    call mkdir(a:pathname, 'p')
-  endif
+function! GetWindowIds(bufInfos) abort
+  let results = []
+  for info in bufInfos
+    let results = results + info.windows
+  endfor
+  return results
 endfunction
+" function! EnsureDir(pathname) abort
+"   if !isdirectory(a:pathname) && !filereadable(a:pathname)
+"     call mkdir(a:pathname, 'p')
+"   endif
+" endfunction
 
 function! EnsureParentDir(pathname) abort
   let dir = fnamemodify(a:pathname, ':p:h')
-  call EnsureDir(dir)
-  " if !isdirectory(dir)
-  "   call mkdir(dir, 'p')
-  " endif
+  " call EnsureDir(dir)
+  if !isdirectory(dir)
+    call mkdir(dir, 'p')
+  endif
 endfunction
 
-function! WipeBuffers(paths) abort
+function! WipeBuffers(bufInfos, paths) abort
   for path in a:paths
-    if bufexists(path)
-      silent execute "normal! :bwipe " . path . "\<CR>"
+    let info =GetBufInfo(a:bufInfos, path)
+    if !GetNothing(info)
+      execute "normal! :bwipe " . path . "\<CR>"
     endif
   endfor
 endfunction
@@ -125,8 +154,8 @@ function! GetBufInfos() abort
           \ 'changed': info.changed,
           \ 'hidden': info.hidden,
           \ 'windows': info.windows,
-          \ 'syntax': info.variables.current_syntax,
-          \ 'name': DirPathFormat(info.name)
+          \ 'syntax': get(info.variables, 'current_syntax', ''),
+          \ 'name': DirPathFormat(get(info, 'name', ''))
           \ }
     call add(results, result)
   endfor
@@ -138,12 +167,13 @@ function! GetFromPaths(from) abort
     return [a:from]
   end
 
-  let arr = split(globpath(a:from, '**'), '%')
+  let arr = split(globpath(a:from, '**'), '\n')
 
   let i = 0
   while i < len(arr)
-    let i += 1
     let arr[i] = DirPathFormat(arr[i])
+    " let arr[i] = arr[i]
+    let i += 1
   endwhile
 
   return arr
@@ -154,19 +184,24 @@ function! GetToPaths(fromToMap) abort
   for info in a:fromToMap
     call add(results, info.to)
   endfor
+  return results
 endfunction
 
 function! DirPathFormat(...) abort
   if a:0 == 1
-    if !isdirectory(a:1)
+    if !isdirectory(a:1) || a:1 == ''
       return a:1
     endif
+  endif
+
+  if a:1 == ''
+    return a:1
   endif
 
   let pathname = a:1
 
   if !IsDirectoryName(pathname)
-    return pathname + '/'
+    return pathname . '/'
   endif
   return pathname
 endfunction
@@ -174,7 +209,7 @@ endfunction
 function! ReplaceRoot(pathname, fromRoot, toRoot) abort
   let fromRootFormated = DirPathFormat(a:fromRoot, 'force')
   let toRootFormated = DirPathFormat(a:toRoot, 'force')
-  return toRootFormated . pathname[len(fromRootFormated):]
+  return toRootFormated . a:pathname[len(fromRootFormated):]
 endfunction
 
 function! GetFromToMap(fromPaths, from, to) abort
@@ -195,7 +230,7 @@ endfunction
 
 function! GetBufInfo(bufinfos, pathname) abort
   for info in a:bufinfos
-    if info.name == pathname
+    if info.name == a:pathname
       return info
     endif
   endfor
@@ -204,8 +239,8 @@ endfunction
 
 function! HasFileModified(bufinfos, paths) abort
   for path in a:paths
-    let info = GetBufInfo(bufinfos, paths)
-    if info.changed == v:true
+    let info = GetBufInfo(a:bufinfos, path)
+    if !GetNothing(info) && info.changed == v:true
       return v:true
     endif
   endfor
@@ -227,16 +262,25 @@ endfunction
 function! GetBufferReplaceActions(infos, fromToMap) abort
   let actions = []
 
-  for fromTo in a:fromToMap
-    let info = GetBufInfo(a:infos, fromTo.from)
+  for info in a:infos
+    " let fro'mTo = GetFromToByFrom(a:fromToMap, info.name)
+    " let info = GetBufInfo(a:infos, fromTo.from)
 
-    if type(info) != v:t_dict
-      continue
-    endif
+    " if GetNothing(fromTo)
+      " continue
+    " endif
+    " if type(info) != v:t_dict
+    "   continue
+    " endif
 
     if info.hidden == v:false && info.syntax == 'dirvish'
       let subActions = CreateDirvishReplaceAction(a:fromToMap, info)
       let actions = actions + subActions
+      continue
+    endif
+
+    let fromTo = GetFromTo(a:fromToMap, info.name)
+    if GetNothing(fromTo)
       continue
     endif
 
@@ -254,6 +298,24 @@ function! GetBufferReplaceActions(infos, fromToMap) abort
 
   return actions
 endfunction
+
+" function! GetFromToByFrom(fromToMap, from)
+"   for fromTo in a:fromToMap
+"     if fromTo == a:from
+"       return fromTo
+"     endif
+"   endfor
+"   return -1
+" endfunction
+
+" function! GetFromToByTo(fromToMap, to)
+"   for fromTo in a:fromToMap
+"     if fromTo == a:from
+"       return fromTo
+"     endif
+"   endfor
+"   return -1
+" endfunction
 
 function! GetBufferDeleteActions(infos, paths) abort
   let actions = []
@@ -278,17 +340,21 @@ endfunction
 function! CreateDirvishReplaceAction(fromToMap, bufInfo) abort
   let prevInfo = GetDirvishPrevInfo(a:bufInfo)
   let actions = []
-  for info in prevInfo['prev']
+  for info in prevInfo.prev
     call add(actions, "normal! :call win_gotoid(" . info.winid . ")\<CR>")
     call add(actions, "normal q")
 
-    let prevFromTo = GetFromTo(a:fromToMap, info.file)
+    let prevFromTo = GetFromTo(a:fromToMap, info.name)
     if !GetNothing(prevFromTo)
       call add(actions, "normal! e " . prevFromTo.to . "\<CR>")
     endif
 
-    let dirvishFromTo= GetFromTo(a:fromToMap, bufInfo.name)
-    call add(actions, "normal :Dirvish " . dirvishFromTo.to)
+    let dirvishFromTo = GetFromTo(a:fromToMap, a:bufInfo.name)
+    if GetNothing(dirvishFromTo)
+      call add(actions, "normal :Dirvish " . a:bufInfo.name . "\<CR>")
+    else
+      call add(actions, "normal :Dirvish " . dirvishFromTo.to . "\<CR>")
+    endif
   endfor
 
   return actions
@@ -296,10 +362,10 @@ endfunction
 
 function! CreateFilePeplaceAction(fromToMap, bufInfo) abort
   let actions = []
-  let fromTo = GetFromTo(a:fromToMap, a:bufInfo)
-  for winid in bufInfo.windows
-    execute add(actions, "normal! :call win_gotoid(" . winid . ")\<CR>")
-    execute add(actions, "normal! e " . fromTo.to . "\<CR>")
+  let fromTo = GetFromTo(a:fromToMap, a:bufInfo.name)
+  for winid in a:bufInfo.windows
+    call add(actions, "normal! :call win_gotoid(" . winid . ")\<CR>")
+    call add(actions, "normal! e " . fromTo.to . "\<CR>")
   endfor
   return actions
 endfunction
@@ -314,11 +380,11 @@ function! GetDirvishPrevInfo(bufInfo) abort
 
   for winid in a:bufInfo.windows
 
-    call win_gotoid(winId)
+    call win_gotoid(winid)
     silent execute "normal q"
     let prevPath = expand('%:p')
 
-    call add(result.prev, {'winid': winid, 'file': prevPath})
+    call add(result.prev, {'winid': winid, 'name': prevPath})
 
     execute "normal :Dirvish " . a:bufInfo.name "\<CR>"
     call win_gotoid(currentWinId)
@@ -337,7 +403,7 @@ function! GetFromTo(fromToMap, from) abort
 endfunction
 
 function! GetNothing(sth) abort
-  return type(sth) == v:t_number && sth == -1
+  return type(a:sth) == v:t_number && a:sth == -1
 endfunction
 
 function! ExecuteActions(actions) abort
@@ -356,6 +422,38 @@ function! ShowDefaultDir() abort
   execute "normal! :b " . s:defaultEmptyBufnr . "\<CR>"
   execute "normal :Dirvish " . fnamemodify('.', ':p') . "\<CR>"
   execute "normal! :bd " . s:defaultEmptyBufnr . "\<CR>"
+endfunction
+
+function! SwitchModifyWindowBufferToDefault(infos, fromToMap) abort
+  for info in a:infos
+    let fromTo = GetFromTo(a:fromToMap, info.name)
+
+    if info.hidden == v:false && info.syntax == 'dirvish'
+      for winid in info.windows
+        call win_gotoid(winid)
+        execute "normal q"
+        let pathname = expand('%:p')
+        let subFromTo = GetFromTo(a:fromToMap, pathname)
+        if GetNothing(subFromTo) && GetNothing(fromTo)
+          execute "normal :Dirvish " . info.name "\<CR>"
+        elseif GetNothing(subFromTo) && !GetNothing(fromTo)
+          continue
+        else
+          call ShowDefaultDir()
+        endif
+      endfor
+    endif
+    if GetNothing(fromTo)
+      continue
+    endif
+
+    if info.hidden == v:false
+      for winid in info.windows
+        call win_gotoid(winid)
+        call ShowDefaultDir()
+      endfor
+    endif
+  endfor
 endfunction
 
 
