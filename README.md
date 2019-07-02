@@ -42,7 +42,7 @@ directory is the one under cursor. For Example:
 ```
 
 When file or directory is moved successfull, related opening buffers will be
-clean up (by using bwipe)
+clean up (by using bwipe) and switch to the dist file.
 
 ### FsDel
 
@@ -60,6 +60,20 @@ Relating opening buffers will be clean up too.
 
 If file has unsave change, alert warning and exit.
 
+### FsCopy
+
+Copy file or directory. if in dirvish, source file or directory is the one under cursor.
+
+For Example:
+
+```vimscript
+:FsDel ~/a/b/c.txt<CR>
+
+" expect source path is ~/a/b/ then this command will copy
+directory to ~/a/c/
+:FsCopy ~/a/c/<CR>
+```
+
 ## MAPPINGS
 
 Here offer some key mapping for command quick input, it can works in
@@ -72,3 +86,6 @@ then press <CR> to execute.
 - `ma`: Fast typing `:FsAdd [pathname]` to command line;
 - `mm`: Fast typing `:FsMove [pathname]` to command line;
 - `md`: Fast typing `:FsDel [pathname]` to command line;
+- `mc`: Fast typing `:FsCopy[pathname]` to command line;
+
+
