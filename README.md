@@ -67,10 +67,10 @@ Copy file or directory. if in dirvish, source file or directory is the one under
 For Example:
 
 ```vimscript
-:FsDel ~/a/b/c.txt<CR>
+" expect source is ~/a/b/a.txt then this command will copy file to ~/a/b/c.txt
+:FsCopy ~/a/b/c.txt<CR>
 
-" expect source path is ~/a/b/ then this command will copy
-directory to ~/a/c/
+" expect source path is ~/a/b/ then this command will copy directory to ~/a/c/
 :FsCopy ~/a/c/<CR>
 ```
 
