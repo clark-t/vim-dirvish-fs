@@ -55,9 +55,9 @@ function! dirvishfs#move(pathname) abort
     return
   endif
 
-  " call EnsureParentDir(to)
   " call SwitchModifyWindowBufferToDefault(infos, fromToMap)
   let actions = GetBufferReplaceActions(infos, fromToMap)
+  call EnsureParentDir(to)
 
   if IsDirectoryName(from)
     call system("cp -r " . from . " " . to)
