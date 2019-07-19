@@ -28,6 +28,8 @@ function! dirvishfs#copy(pathname)
   else
     call system("cp " . from . " " . to)
   endif
+
+  call RefreshDirvish()
 endfunction
 
 function! dirvishfs#move(pathname) abort
