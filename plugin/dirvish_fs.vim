@@ -18,4 +18,8 @@ nnoremap ma :<C-U><C-R>=printf("FsAdd %s", expand('%:p'))<CR>
 nnoremap mm :<C-U><C-R>=printf("FsMove %s", &filetype=='dirvish' ? getline('.') : expand('%:p'))<CR>
 nnoremap md :<C-U><C-R>=printf("FsDel %s", &filetype=='dirvish' ? getline('.') : expand('%:p'))<CR>
 nnoremap mc :<C-U><C-R>=printf("FsCopy %s", &filetype=='dirvish' ? getline('.') : expand('%:p'))<CR>
+nnoremap MA :<C-U><C-R>=printf("FsAdd %s", expand('%:p'))<CR>
+nnoremap MM :<C-U><C-R>=printf("FsMove %s", &filetype=='dirvish' ? getline('.') : expand('%:p'))<CR>
+nnoremap MD :<C-U><C-R>=printf("FsDel %s", &filetype=='dirvish' ? getline('.') : expand('%:p'))<CR>
+nnoremap MC :<C-U><C-R>=printf("FsCopy %s", &filetype=='dirvish' ? getline('.') : expand('%:p'))<CR>
 
